@@ -636,7 +636,7 @@ This is also where Arduino.mk will be found."
 	(insert-file-contents vfile)
 	(goto-char (point-min))
 	(prog1
-	    (if (looking-at "[0-1]+:\\([.0-9]+\\)\\+")
+	    (if (looking-at "[0-9]+:\\([.0-9]+\\)\\>")
 		(match-string 1)
 	      (buffer-substring-no-properties (point) (point-at-eol)))
 	  (kill-buffer buff)
