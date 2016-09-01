@@ -18,4 +18,5 @@ doc/info/dir
 *-make-script
 *-loaddefs.el
 *.class
+*.patch
 NOTES
