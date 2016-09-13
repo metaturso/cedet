@@ -1,6 +1,6 @@
 /** test-fmt.cpp --- Signatures, and format answers for testing
  *
- * Copyright (C) 2012 Eric M. Ludlam
+ * Copyright (C) 2012, 2016 Eric M. Ludlam
  *
  * Author: Eric M. Ludlam <eric@siege-engine.com>
  *
@@ -78,6 +78,24 @@ const int var_two = 1;
  * ## summarize "Variables: const int var_two[=1]"
  * ## prototype "const int var_two[=1]"
  * ## uml-prototype "var_two : int"
+ */
+
+namespace NS {
+  enum TestEnum {a,b};
+}
+/*
+ * ## name "NS"
+ * ## summarize "Types: namespace NS {}"
+ * ## prototype "namespace NS {}"
+ * ## uml-prototype "NS{} : namespace"
+ */
+
+void func_ns_arg(NS::TestEnum v = NS::a);
+/*
+ * ## name "func_ns_arg"
+ * ## summarize "Functions: void func_ns_arg (NS::TestEnum v[=NS::a])"
+ * ## prototype "void func_ns_arg (NS::TestEnum v[=NS::a])"
+ * ## uml-prototype "func_ns_arg (v : NS::TestEnum) : void"
  */
 
 //int const var_three = 1;
