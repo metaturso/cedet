@@ -1486,7 +1486,7 @@ resources
   ;
 
 resource
-  : {modifiers} reference_type variable_declarator_id = expression
+  : {modifiers} reference_type variable_declarator_id EQ expression
   ;
 
 finally
