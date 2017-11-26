@@ -138,6 +138,11 @@ For Emacs Lisp system DB, there isn't one."
     ;; There is no promise to have files associated.
     (nreverse newtags)))
 
+(defcustom semanticdb-el-dont-parse-files-during-normilzation t
+  "When semantic searches Emacs' symbol table, don't parse .el files during normalization.
+Normalization is a process for during an internal Emacs symbol into a tag
+associated with a specific file where it was declared.")
+
 (defmethod semanticdb-normalize-one-tag ((obj semanticdb-table-emacs-lisp) tag)
   "Convert one TAG, originating from Emacs OBJ, into standardized form.
 If Emacs cannot resolve this symbol to a particular file, then return nil."
@@ -156,7 +161,8 @@ If Emacs cannot resolve this symbol to a particular file, then return nil."
 		 ;; Older [X]Emacs don't have a 2nd argument.
 		 (error (symbol-file sym))))
 	 )
-    (if (or (not file) (not (file-exists-p file)))
+    (if (or (not file) (not (file-exists-p file))
+	    semanticdb-el-dont-parse-files-during-normilzation)
 	;; The file didn't exist.  Return nil.
 	;; We can't normalize this tag.  Fake it out.
 	(cons obj tag)
