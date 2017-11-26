@@ -1,6 +1,6 @@
 ;;; semantic/wisent/java.wy -- LALR grammar for Java
 ;;
-;; Copyright (C) 2002, 2003, 2004, 2005, 2006 David Ponce
+;; Copyright (C) 2002, 2003, 2004, 2005, 2006, 2017 David Ponce
 ;;
 ;; Author: David Ponce <david@dponce.com>
 ;; Maintainer: David Ponce <david@dponce.com>
@@ -1458,8 +1458,8 @@ synchronized_statement
   ;
 
 try_statement
-  : TRY block catches
-  | TRY block catches_opt finally
+  : TRY resources_opt block catches
+  | TRY resources_opt block catches_opt finally
   ;
 
 catches_opt
@@ -1474,6 +1474,19 @@ catches
 
 catch_clause
   : CATCH LPAREN formal_parameter RPAREN block
+  ;
+
+resources_opt
+  : ;; EMPTY
+  | LPAREN resources {SEMICOLON} RPAREN
+  ;
+
+resources
+  : resource {SEMICOLON resource}
+  ;
+
+resource
+  : {modifiers} reference_type variable_declarator_id = expression
   ;
 
 finally
