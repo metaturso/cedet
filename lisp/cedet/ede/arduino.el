@@ -1,6 +1,6 @@
 ;;; ede/arduino.el --- EDE support for arduino projects / sketches
 ;;
-;; Copyright (C) 2012, 2013, 2014, 2015, 2016 Eric M. Ludlam
+;; Copyright (C) 2012, 2013, 2014, 2015, 2016, 2017 Eric M. Ludlam
 ;;
 ;; Author: Eric M. Ludlam <eric@siege-engine.com>
 ;;
@@ -309,15 +309,21 @@ Argument COMMAND is the command to use for compiling the target."
 	 (libs (ede-arduino-guess-libs))
 	 (iplibs (mapcar
 		  (lambda (lib)
-		    (expand-file-name (concat "libraries/" lib)
-				      (ede-arduino-find-install)))
+		    (let ((ans (ede-arduino-libdir lib)))
+		      (if (file-exists-p (expand-file-name (concat lib ".h") ans))
+			  ans
+			(expand-file-name "src" ans)))
+		    )
 		  libs))
 	 ;; Also pull libs from sketchbook
 	 (sketchroot (and prefs (oref prefs sketchbook)))
 	 (sblibs (mapcar
 		  (lambda (lib)
-		    (expand-file-name (concat "libraries/" lib)
-				      sketchroot))
+		    (let ((ans (expand-file-name (concat "libraries/" lib)
+						 sketchroot)))
+		      (if (file-exists-p (expand-file-name (concat lib ".h") ans))
+			  ans
+			(expand-file-name "src" ans))))
 		  libs))
 	 )
 
@@ -413,7 +419,8 @@ Argument COMMAND is the command to use for compiling the target."
 	 "AVRDUDE_ARD_BAUDRATE" (oref board speed)
 	 "AVRDUDE_ARD_PROGRAMMER" (oref board protocol)
 	 "ARDUINO_MK" (ede-arduino-Arduino.mk)
-	 "ARDUINO_HOME" (ede-arduino-find-install)
+	 "ARDUINO_MAKE_DIR" (directory-file-name (file-name-directory (ede-arduino-Arduino.mk)))
+	 "ARDUINO_HOME" (directory-file-name (ede-arduino-find-install))
 	 ))
       (save-buffer)
       (when (not orig-buffer) (kill-buffer (current-buffer)))
@@ -435,9 +442,11 @@ Argument COMMAND is the command to use for compiling the target."
     (save-current-buffer
       (setq buff (find-file-noselect sketch))
       (set-buffer buff)
+      ;; Extract includes using regexp b/c this is used before the
+      ;; semantic engine has finished parsing the buffer.
       (save-excursion
 	(goto-char (point-min))
-	(while (re-search-forward "^#include <\\(\\w+\\).h>" nil t)
+	(while (re-search-forward "^#include <\\(\\(\\w\\|\\s_\\)+\\).h>" nil t)
 	  (setq tmp (match-string 1))
 	  (unless (file-exists-p (concat tmp ".h"))
 	    (let* ((lib (match-string 1))
@@ -448,7 +457,8 @@ Argument COMMAND is the command to use for compiling the target."
 		(push (concat lib "/utility") libs))
 	      ;; Push real lib after the utility
 	      (push lib libs)
-	      )))))
+	      ))))
+      )
     (when (not orig-buffer) (kill-buffer buff))
     libs))
     
@@ -614,18 +624,33 @@ This is also where Arduino.mk will be found."
 	      (when (not (re-search-forward "APPDIR=" nil t))
 		(error "Cannot find APPDIR from the arduino command"))
 
-	      (prog1
-		  (setq ede-arduino-appdir
-			(buffer-substring-no-properties (point) (point-at-eol)))
-		(kill-buffer buff)))))))))
+	      (let ((appdir (buffer-substring-no-properties (point) (point-at-eol))))
+		(when (not (file-exists-p appdir))
+		  ;; If it doesn't exist, it is probably a bit of script trying
+		  ;; to calculate where this arduino script is.  In that case,
+		  ;; do the same.
+		  (setq appdir (file-name-directory arduinofile)))
+		(prog1
+		    (setq ede-arduino-appdir appdir)
+		  (kill-buffer buff))))))))))
+
+(defcustom ede-Arduino.mk-file nil
+  "Location of the Arduino.mk file."
+  :group 'ede
+  :type 'file)
 
 (defun ede-arduino-Arduino.mk ()
   "Return the location of Arduino's makefile helper."
-  (let ((fn (expand-file-name "Arduino.mk" (ede-arduino-find-install))))
-    (unless (file-exists-p fn)
-      (error "Arduino.mk not found.
-\"arduino-mk\" package not installed, and is required by EDE generated arduino makefiles."))
-    fn))
+  (if (and ede-Arduino.mk-file (file-exists-p ede-Arduino.mk-file))
+      ede-Arduino.mk-file
+    (let ((fn (expand-file-name "Arduino.mk" (ede-arduino-find-install))))
+      (unless (file-exists-p fn)
+	(setq fn (expand-file-name "../Arduino-Makefile/Arduino.mk" (ede-arduino-find-install)))
+	(unless (file-exists-p fn)
+	  (error "Arduino.mk not found.
+\"arduino-mk\" package not installed, or Arduino-Makefile git repository not found.
+Arduino.mk is required by EDE generated arduino makefiles."))
+	fn))))
 
 (defun ede-arduino-Arduino-Version ()
   "Return the version of the installed Arduino."
@@ -644,16 +669,27 @@ This is also where Arduino.mk will be found."
 	  
 (defun ede-arduino-boards.txt ()
   "Return the location of Arduino's boards.txt file."
-  (file-expand-wildcards
-   (expand-file-name "hardware/*/boards.txt" (ede-arduino-find-install))))
+  (or (file-expand-wildcards
+       (expand-file-name "hardware/*/boards.txt" (ede-arduino-find-install)))
+      (file-expand-wildcards
+       (expand-file-name "hardware/arduino/*/boards.txt" (ede-arduino-find-install)))))
+
+(defvar ede-arduino-system-libdirs
+  '("libraries" "hardware/arduino/avr/libraries")
+  "List of subdirectories in the Arduino install dir where libraries are found.")
 
 (defun ede-arduino-libdir (&optional library)
   "Return the full file location of LIBRARY.
 If LIBRARY is not provided as an argument, just return the library directory."
-  (let ((libdir (expand-file-name "libraries" (ede-arduino-find-install))))
-    (if library
-	(expand-file-name library libdir)
-      libdir)))
+  (let ((ans nil)
+	(tmp nil))
+    (dolist (L ede-arduino-system-libdirs)
+      (let ((libdir (expand-file-name L (ede-arduino-find-install))))
+	(when (file-exists-p libdir)
+	  (setq tmp (expand-file-name library libdir))
+	  (when (file-exists-p tmp)
+	    (setq ans tmp)))))
+    ans))
 
 ;;; Arduino Board Reading
 ;; 
