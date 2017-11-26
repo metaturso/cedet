@@ -1,6 +1,6 @@
 ;; ede-make.srt --- SRecode templates for Makefiles used by EDE.
 
-;; Copyright (C) 2008-2013 Free Software Foundation, Inc.
+;; Copyright (C) 2008-2013, 2017 Free Software Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <eric@siege-engine.com>
 
@@ -61,6 +61,7 @@ template ede-empty :file
 # http://cedet.sourceforge.net/ede.shtml
 
 ARDUINO_DIR  = {{ARDUINO_HOME}}
+ARDMK_DIR    = {{ARDUINO_MAKE_DIR}}
 
 TARGET       = {{TARGET}}
 ARDUINO_LIBS = {{ARDUINO_LIBS}}
