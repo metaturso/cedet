@@ -227,7 +227,7 @@ OVERRIDE-CHECK to override cedet short-cicuit."
       
       (let ((ns (object-name-string targ)))
 	(cedet-build-msg "   Target %s...%s" ns
-			 (make-string (- 20 (length ns)) ? )))
+			 (make-string (max 0 (- 20 (length ns))) ? )))
       
       ;; If it is an elisp target, then do that work here.
       (let ((ans (save-excursion
